@@ -137,7 +137,7 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
         self.exit_button.clicked.connect(self.close)
 
     def view_attendance(self):
-        """Fetch and display attendance records."""
+        """Fetch and display attendance records for the logged-in professor."""
         if self.table_widget is not None:
             self.table_widget.hide()  # Hide the manage students table if it exists
     
@@ -167,8 +167,9 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
                     a.professor_name 
                 FROM attendance a
                 JOIN student_list s ON a.student_id = s.srcode
+                WHERE a.professor_name = %s
             """
-            cursor.execute(query)
+            cursor.execute(query, (self.professor_name,))  # Filter by the logged-in professor's name
             records = cursor.fetchall()
     
             self.attendance_table.setRowCount(len(records))
@@ -190,11 +191,11 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
         self.attendance_table.setColumnWidth(4, 260)  # Professor Name
         self.attendance_table.verticalHeader().setDefaultSectionSize(40)  # Set row height
 
-    # Enable sorting
+        # Enable sorting
         self.attendance_table.setSortingEnabled(True)
     
-        self.attendance_table.show()  # Show the attendance table # Show the attendance table
-    
+        self.attendance_table.show()  # Show the attendance table # Show the attendance table # Show the attendance table
+        
     def random_select_student(self):
         """Randomly select a student from the attendance table."""
         if self.attendance_table is not None:
