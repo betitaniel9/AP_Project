@@ -20,3 +20,5 @@ The Attendance Checker boasts a clean and simple interface designed to enhance t
 
 6. Professor-Specific Features
 The application allows each professor to view attendance records only for their respective classes. The professor’s name is used as a filter to retrieve relevant attendance data. This makes the application highly personalized for each professor, ensuring that they can focus solely on their own students without interference.
+
+Link to the Vid Demonstration: https://youtu.be/E5RzM-2k4Gk
