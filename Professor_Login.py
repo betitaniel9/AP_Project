@@ -1,9 +1,9 @@
 import sys
 import mysql.connector
-from mysql.connector import Error
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtCore import Qt
 
+#Calls or inherits the Main Menu Class
 from Professor_Main_Frame import ProfessorMainMenu
 
 class ProfessorLogin(QtWidgets.QMainWindow):
@@ -11,7 +11,7 @@ class ProfessorLogin(QtWidgets.QMainWindow):
         super().__init__()
 
         self.setWindowFlag(Qt.FramelessWindowHint)
-        self.set_background("C:\\Applications\\VCS codes\\Attendance_Checker ACP\\Icons\\Login Icons\\Teacher_Login_Pic.png")
+        self.set_background("C:\VSC files(codes)\Attendance_Checker ACP\Icons\Login Icons\Teacher_Login_Pic.png")
         self.setGeometry(350, 150, 1200, 800)
 
         # Create a frame for the login form
@@ -26,7 +26,7 @@ class ProfessorLogin(QtWidgets.QMainWindow):
         self.logo = QtWidgets.QLabel(self.loginFrame)
         self.logo.setGeometry(105, 50, 200, 200)  # Adjust the size and position as needed
 
-        logo_pixmap = QtGui.QPixmap("C:/Applications/VCS codes/Attendance_Checker ACP/Icons/Login Icons/BSU_Logo.png")
+        logo_pixmap = QtGui.QPixmap("C:\VSC files(codes)\Attendance_Checker ACP\Icons\Login Icons\BSU_Logo.png")
         self.logo.setPixmap(logo_pixmap)
         self.logo.setScaledContents(True)
 
@@ -60,7 +60,7 @@ class ProfessorLogin(QtWidgets.QMainWindow):
                 background: rgba(255, 255, 255, 150);
             }
         """)
-        close_Button_icon = QtGui.QIcon("C:/Applications/VCS codes/Attendance_Checker ACP/Icons/Login Icons/Close_Icon.png")
+        close_Button_icon = QtGui.QIcon("C:\VSC files(codes)\Attendance_Checker ACP\Icons\Login Icons\Close_Icon.png")
         closeButton.setIcon(close_Button_icon)
         closeButton.setIconSize(QtCore.QSize(35, 35))
         closeButton.clicked.connect(self.close)
@@ -78,7 +78,7 @@ class ProfessorLogin(QtWidgets.QMainWindow):
                 background: rgba(255, 255, 255, 150);
             }
         """)
-        minimize_Button_icon = QtGui.QIcon("C:/Applications/VCS codes\\Attendance_Checker ACP/Icons/Login Icons/Minimze_Icon.png")
+        minimize_Button_icon = QtGui.QIcon("C:\VSC files(codes)\Attendance_Checker ACP\Icons\Login Icons\Minimze_Icon.png")
         minimizeButton.setIcon(minimize_Button_icon)
         minimizeButton.setIconSize(QtCore.QSize(35, 35))
         minimizeButton.clicked.connect(self.showMinimized)
@@ -138,7 +138,7 @@ class ProfessorLogin(QtWidgets.QMainWindow):
         self.Login_Button.clicked.connect(self.check_login)
 
         # Add text at the bottom of the loginFrame
-        self.bottomText = QtWidgets.QLabel("Having Problems? Contact Tech Support", self.loginFrame)
+        self.bottomText = QtWidgets.QLabel("(this is for Project Purposes only)", self.loginFrame)
         self.bottomText.setGeometry(60, 520, 290, 40)  # Adjust position as needed
         self.bottomText.setFont(QtGui.QFont("Montserrat", 10))  # Adjust font size
         self.bottomText.setAlignment(QtCore.Qt.AlignCenter)  # Center the text
@@ -158,10 +158,19 @@ class ProfessorLogin(QtWidgets.QMainWindow):
         self.background_label.setScaledContents(True)
 
     def check_login(self):
-        username = self.Username.text().strip().lower()  # Convert to lowercase for case-insensitive matching
-        input_password = self.password.text().strip()  # Remove extra spaces
-    
-        # Debug: Print input values
+        username = self.Username.text().strip()  # Remove leading/trailing spaces
+        input_password = self.password.text().strip()  # Remove leading/trailing spaces
+
+    # Validation checks
+        if not username or not input_password:
+            QtWidgets.QMessageBox.warning(self, "Input Error", "Username and password cannot be empty!")
+            return
+
+        if not self.is_valid_username(username):
+            QtWidgets.QMessageBox.warning(self, "Input Error", "Username must contain only letters and spaces!")
+            return
+
+    # Debug: Print input values
         print(f"Username: {username}, Password: {input_password}")
 
         try:
@@ -187,7 +196,7 @@ class ProfessorLogin(QtWidgets.QMainWindow):
                     """
                     cursor.execute(query, (first_name, last_name, input_password))
                 else:
-                # Otherwise, assume the username is either email or a single name
+                    # Otherwise, assume the username is either email or a single name
                     query = """
                     SELECT first_name, last_name FROM professor_list 
                     WHERE 
@@ -215,6 +224,9 @@ class ProfessorLogin(QtWidgets.QMainWindow):
             if connection.is_connected():
                 cursor.close()
                 connection.close()
+
+    def is_valid_username(self, username):
+        return all(c.isalpha() or c.isspace() for c in username)
 
 
     

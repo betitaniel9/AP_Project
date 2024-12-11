@@ -11,7 +11,7 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
         self.professor_name = professor_name  # Store the professor's name
         self.setWindowFlag(Qt.FramelessWindowHint)
         self.setGeometry(0, 0, 1920, 1080)
-        self.set_background("C:\\Applications\\VCS codes\\Attendance_Checker ACP\\Icons\\Login Icons\\MAIN_MENU_BG.png")
+        self.set_background("C:\VSC files(codes)\Attendance_Checker ACP\Icons\Login Icons\Main_Menu_BG.png")
         self.add_top_bar(professor_name)
         self.create_buttons()
         self.table_widget = None
@@ -50,6 +50,23 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
         self.block_combobox.addItems(["All Blocks", "2101", "2102", "2103", "2104", "2105", "2106"])
         self.block_combobox.currentIndexChanged.connect(self.filter_by_block)
     
+        self.Reset_Table = QtWidgets.QPushButton("Reset Table",self.top_bar)
+        self.Reset_Table.setGeometry(700, 15, 100, 40)
+        self.Reset_Table.setFont(QtGui.QFont("Montserrat", 12))
+        self.Reset_Table.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(255, 255, 255, 150);
+                color: white;
+                border: 1px solid white;
+                border-radius: 10px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 0, 0, 200);
+            }
+        """)
+        self.Reset_Table.clicked.connect(self.reset_attendance_table)  
+
+
         # Logout Button
         self.logout_button = QtWidgets.QPushButton("Logout", self.top_bar)
         self.logout_button.setGeometry(self.width() - 100, 15, 80, 30)
@@ -141,6 +158,7 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
         if self.table_widget is not None:
             self.table_widget.hide()  # Hide the manage students table if it exists
     
+        # Initialize the attendance table if it doesn't exist
         if self.attendance_table is None:
             self.attendance_table = QtWidgets.QTableWidget(self)
             self.attendance_table.setGeometry(560, 100, 1360, 900)  # Positioning the table
@@ -150,6 +168,9 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
             header_font = QtGui.QFont("Montserrat", 20, QtGui.QFont.Bold)
             self.attendance_table.horizontalHeader().setFont(header_font)
             self.attendance_table.horizontalHeader().setStyleSheet("background-color: lightgray;")
+        
+    # Clear existing records before fetching new ones
+        self.attendance_table.setRowCount(0)
     
         try:
             connection = mysql.connector.connect(
@@ -166,8 +187,8 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
                     a.block, 
                     a.professor_name 
                 FROM attendance a
-                JOIN student_list s ON a.student_id = s.srcode
-                WHERE a.professor_name = %s
+            JOIN student_list s ON a.student_id = s.srcode
+                WHERE a.professor_name = %s AND a.attendance != 'Absent'
             """
             cursor.execute(query, (self.professor_name,))  # Filter by the logged-in professor's name
             records = cursor.fetchall()
@@ -182,7 +203,7 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
         finally:
             if 'connection' in locals() and connection.is_connected():
                 connection.close()
-
+    
         # Table customization
         self.attendance_table.setColumnWidth(0, 260)  # Student Name
         self.attendance_table.setColumnWidth(1, 260)  # Date
@@ -190,11 +211,45 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
         self.attendance_table.setColumnWidth(3, 260)  # Block
         self.attendance_table.setColumnWidth(4, 260)  # Professor Name
         self.attendance_table.verticalHeader().setDefaultSectionSize(40)  # Set row height
-
+    
         # Enable sorting
         self.attendance_table.setSortingEnabled(True)
     
-        self.attendance_table.show()  # Show the attendance table # Show the attendance table # Show the attendance table
+        self.attendance_table.show()  # Show the attendance table
+        
+    
+    def reset_attendance_table(self):
+        """Reset the attendance table to be blank and clear records from the database for the selected block."""
+        selected_block = self.block_combobox.currentText()
+        
+        if selected_block != "All Blocks":
+            # Connect to the database and delete records for the selected block
+            try:
+                connection = mysql.connector.connect(
+                    host="localhost",
+                    user="root",
+                    password="",
+                    database="attendance_checker"
+                )
+                cursor = connection.cursor()
+                delete_query = "DELETE FROM attendance WHERE block = %s"
+                cursor.execute(delete_query, (selected_block,))
+                connection.commit()  # Commit the changes
+                
+                # Show a message box to confirm deletion
+                QtWidgets.QMessageBox.information(self, "Reset Successful", f"Attendance records for block {selected_block} have been reset.")
+            
+            except mysql.connector.Error as e:
+                QtWidgets.QMessageBox.critical(self, "Database Error", f"An error occurred: {e}")
+            
+            finally:
+                if 'connection' in locals() and connection.is_connected():
+                    connection.close()
+    
+        # Clear the attendance table in the UI
+        if self.attendance_table is not None:
+            self.attendance_table.setRowCount(0)  # Clear all rows in the attendance table
+        
         
     def random_select_student(self):
         """Randomly select a student from the attendance table."""
@@ -285,41 +340,112 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
 
         # Show the table
         self.table_widget.show()
+
+
     def mark_attendance(self, row_idx):
-        """Prompt user to select attendance status."""
-        status, ok = QtWidgets.QInputDialog.getItem(self, "Mark Attendance", "Select Status:", ["Present", "Late", "Absent"], 0, False)
-        if ok and status:
-            # Update the attendance status in the table
-            self.table_widget.item(row_idx, 5).setText(status)  # Update the status in the table
-            if status == "Present":
-                self.table_widget.item(row_idx, 5).setBackground(QtGui.QColor(0, 255, 0))  # Green for Present
-            elif status == "Absent":
-                self.table_widget.item(row_idx, 5).setBackground(QtGui.QColor(255, 0, 0))  # Red for Absent
-            elif status == "Late":
-                self.table_widget.item(row_idx, 5).setBackground(QtGui.QColor(255, 255, 0))  # Yellow for Late
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Mark Attendance")
 
-            # Get the current date
-            current_date = datetime.now().strftime("%Y-%m-%d")
+    # Set the size of the dialog
+        dialog_width = 400
+        dialog_height = 305
+        dialog.setFixedSize(dialog_width, dialog_height)
 
-            # Update the database with the new status
-            try:
-                connection = mysql.connector.connect(
-                    host="localhost",
-                    user="root",
-                    password="",
-                    database="attendance_checker"
-                )
-                cursor = connection.cursor()
-                srcode = self.table_widget.item(row_idx, 0).text()  # Get SRCODE from the first column
-                block = self.table_widget.item(row_idx, 4).text()  # Get Block from the fifth column
-                insert_query = "INSERT INTO attendance (student_id, date, attendance, block, professor_name) VALUES (%s, %s, %s, %s, %s)"
+    # Get the screen's geometry
+        screen_geometry = QtWidgets.QDesktopWidget().screenGeometry()
+        screen_width = screen_geometry.width()
+        screen_height = screen_geometry.height()
+
+    # Calculate the position to center the dialog
+        x = (screen_width - dialog_width) // 2
+        y = (screen_height - dialog_height) // 2
+        dialog.move(x, y)  # Move the dialog to the calculated position
+
+    # Create buttons for attendance status
+        present_button = QtWidgets.QPushButton("Present", dialog)
+        present_button.setStyleSheet("background-color: green; color: white; font-size: 20px;")
+    
+        late_button = QtWidgets.QPushButton("Late", dialog)
+        late_button.setStyleSheet("background-color: yellow; color: black; font-size: 20px;")
+    
+        absent_button = QtWidgets.QPushButton("Absent", dialog)
+        absent_button.setStyleSheet("background-color: red; color: white; font-size: 20px;")
+
+    # Set button sizes
+        present_button.setFixedSize(375, 100)
+        late_button.setFixedSize(375, 100)
+        absent_button.setFixedSize(375, 100)
+
+    # Create a layout for the buttons
+        layout = QtWidgets.QVBoxLayout(dialog)
+        layout.addWidget(present_button)
+        layout.addWidget(late_button)
+        layout.addWidget(absent_button)
+
+    # Connect button clicks to the appropriate actions
+        present_button.clicked.connect(lambda: self.set_attendance_status(row_idx, "Present", dialog))
+        late_button.clicked.connect(lambda: self.set_attendance_status(row_idx, "Late", dialog))
+        absent_button.clicked.connect(lambda: self.set_attendance_status(row_idx, "Absent", dialog))
+
+        dialog.exec_()  # Show the dialog and wait for user input
+    def set_attendance_status(self, row_idx, status, dialog):
+        """Set the attendance status and close the dialog."""
+    # Update the attendance status in the table
+        self.table_widget.item(row_idx, 5).setText(status)  # Update the status in the table
+        if status == "Present":
+            self.table_widget.item(row_idx, 5).setBackground(QtGui.QColor(0, 255, 0))  # Green for Present
+        elif status == "Absent":
+            self.table_widget.item(row_idx, 5).setBackground(QtGui.QColor(255, 0, 0))  # Red for Absent
+        elif status == "Late":
+            self.table_widget.item(row_idx, 5).setBackground(QtGui.QColor(255, 255, 0))  # Yellow for Late
+
+    # Get the current date
+        current_date = datetime.now().strftime("%Y-%m-%d")
+
+    # Update the database with the new status
+        try:
+            connection = mysql.connector.connect(
+                host="localhost",
+                user="root",
+                password="",
+                database="attendance_checker"
+            )
+            cursor = connection.cursor()
+            srcode = self.table_widget.item(row_idx, 0).text()  # Get SRCODE from the first column
+            block = self.table_widget.item(row_idx, 4).text()  # Get Block from the fifth column
+        
+        # Check if attendance record already exists
+            check_query = """
+            SELECT COUNT(*) FROM attendance 
+            WHERE student_id = %s AND date = %s
+        """
+            cursor.execute(check_query, (srcode, current_date))
+            exists = cursor.fetchone()[0]  # Get the count of existing records
+
+            if exists > 0:
+            # Update the existing record
+                update_query = """
+                    UPDATE attendance 
+                    SET attendance = %s, block = %s, professor_name = %s 
+                    WHERE student_id = %s AND date = %s
+                """
+                cursor.execute(update_query, (status, block, self.professor_name, srcode, current_date))
+            else:
+            # Insert a new record
+                insert_query = """
+                    INSERT INTO attendance (student_id, date, attendance, block, professor_name) 
+                    VALUES (%s, %s, %s, %s, %s)
+                """
                 cursor.execute(insert_query, (srcode, current_date, status, block, self.professor_name))
-                connection.commit()
-            except mysql.connector.Error as e:
-                QtWidgets.QMessageBox.critical(self, "Database Error", f"An error occurred: {e}")
-            finally:
-                if 'connection' in locals() and connection.is_connected():
-                    connection.close()
+
+            connection.commit()  # Commit the changes
+
+        except mysql.connector.Error as e:
+            QtWidgets.QMessageBox.critical(self, "Database Error", f"An error occurred: {e}")
+        finally:
+            if 'connection' in locals() and connection.is_connected():
+                connection.close()
+
 
     def generate_reports(self):
         """Placeholder for generating reports."""
@@ -332,9 +458,6 @@ class ProfessorMainMenu(QtWidgets.QMainWindow):
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    professor_name = "John Doe"  # Replace with any name you'd like to display
-    main_menu = ProfessorMainMenu(professor_name)
-    main_menu.show()
     sys.exit(app.exec_())
 
 if __name__ == "__main__":
